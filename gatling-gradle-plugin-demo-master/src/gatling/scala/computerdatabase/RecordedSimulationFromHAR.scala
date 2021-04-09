@@ -73,12 +73,28 @@ class RecordedSimulationFromHAR extends Simulation {
               .formParam("discontinued", "")
               .formParam("company", "1"))
   }
-  // If there was 
+  /* If there was a repeated segment, you have to use the repeat command in SCala
+  */
+  object Browse {
+    val browse = {
+      repeat(5, i) {
+          exec(http("Add new Computer - repeat")
+          .get("/computers/new"))
+            // IF you want to use i, do this -> ${i}
+          .pause(20)
+      }
+    }
+  }
+	val scn = scenario("RecordedSimulationFromHAR")
+    .exec(ReqOne.rq1,
+      ReqTwo.rq2,
+      ReqThree.rq3 //, Browse.browse
+  );
 
-	val scn = scenario("RecordedSimulationFromHAR").exec(ReqOne.rq1, ReqTwo.rq2, ReqThree.rq3);
+  // You can have multiple scenarios
+  val scn2 = scenario("Scenario2").exec(ReqThree.rq3, ReqTwo.rq2)
 
-
-
-
+  //  You can change the setUp to have multiple scenarios
+  // Look at the SectionB PDF
 	setUp(scn.inject(atOnceUsers(1))).protocols(httpProtocol)
 }
