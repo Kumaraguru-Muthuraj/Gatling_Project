@@ -14,6 +14,8 @@ class DemostoreSimulation extends Simulation {
 		.baseUrl("http://" + domain)
 
   val categoryFeeder = csv("data/categoryDetails.csv").random
+  val jsonFeederProducts = jsonFile("data/productDetails.json").random
+  val loginFeeder = csv("data/loginDetails.csv").circular
 
     // Tiding up the project
     //.inferHtmlResources(BlackList(""".*\.js""", """.*\.css""", """.*\.gif""", """.*\.jpeg""", """.*\.jpg""", """.*\.ico""", """.*\.woff""", """.*\.woff2""", """.*\.(t|o)tf""", """.*\.png""", """.*detectportal\.firefox\.com.*"""), WhiteList())
@@ -47,8 +49,58 @@ class DemostoreSimulation extends Simulation {
         )
       }
     }
+    object Product {
+      def view = {
+        feed(jsonFeederProducts)
+          .exec(http("Load Product Page - ${name}")
+            .get("/product/${slug}")
+            .check(status.is(200))
+            .check(css("#ProductDescription").is("${description}"))
+          )
+      }
+
+      //Demonstrates how one can call other and chain.
+      def add = {
+        exec(view)
+          .exec(http("Add Product to Cart")
+            .get("/cart/add/${id}")
+            .check(status.is(200))
+            .check(substring("items in your cart"))
+          )
+      }
+    }
   }
 
+  object Checkout {
+    def viewCart = {
+      exec(http("Load cart page")
+        .get("/cart/view")
+        .check(status.is(200)))
+    }
+
+    def completeCheckout = {
+      exec(http("Checkout Cart")
+        .get("/cart/checkout")
+        .check(status.is(200))
+        .check(substring("Thanks for your order! See you soon!")))
+    }
+  }
+
+  object Customer {
+    def login = {
+      feed(loginFeeder)
+        .exec(http("Load Login page")
+          .get("/login")
+          .check(status.is(200))
+          .check(substring("Username:")))
+        .exec(http("Customer Login Action")
+          .post("/login")
+          .formParam("_csrf", "${csrfValue}")
+          .formParam("username", "${username}")
+          .formParam("password", "${password}")
+          .check(status.is(200)))
+    }
+  }
 
   //Removed headers for tidying up
 	val scn = scenario("DemostoreSimulation")
@@ -58,23 +110,17 @@ class DemostoreSimulation extends Simulation {
     .pause(2)
     .exec(Catalog.Category.view)
 		.pause(2)
-		.exec(http("Load Product Page")
-			.get("/product/black-and-red-glasses"))
+    // We moved view to Catalog.Product.add
+    //.exec(Catalog.Product.view)
+		//.pause(2)
+    .exec(Catalog.Product.add)
 		.pause(2)
-		.exec(http("Add Product to Cart")
-			.get("/cart/add/19"))
+    .exec(Checkout.viewCart)
 		.pause(2)
-		.exec(http("View Cart")
-			.get("/cart/view"))
+    .exec(Customer.login)
 		.pause(2)
-		.exec(http("Login User")
-			.post("/login")
-			.formParam("_csrf", "${csrfValue}")
-			.formParam("username", "user1")
-			.formParam("password", "pass"))
-		.pause(2)
-		.exec(http("Checkout")
-			.get("/cart/checkout"))
+    .exec(Checkout.completeCheckout)
+
 
 	setUp(scn.inject(atOnceUsers(1))).protocols(httpProtocol)
 }
