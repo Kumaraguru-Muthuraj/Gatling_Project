@@ -1,10 +1,11 @@
 package gatlingdemostore
 
 import scala.concurrent.duration._
-
 import io.gatling.core.Predef._
 import io.gatling.http.Predef._
 import io.gatling.jdbc.Predef._
+
+import scala.util.Random
 
 class DemostoreSimulation extends Simulation {
 
@@ -16,6 +17,20 @@ class DemostoreSimulation extends Simulation {
   val categoryFeeder = csv("data/categoryDetails.csv").random
   val jsonFeederProducts = jsonFile("data/productDetails.json").random
   val loginFeeder = csv("data/loginDetails.csv").circular
+
+  val rnd = new Random()
+  def randomString(length: Int): String = {
+    rnd.alphanumeric.filter(_.isLetter).take(length).mkString
+  }
+
+  val initSession = exec(flushCookieJar)
+    .exec(session => session.set("randomNumber", rnd.nextInt))
+    .exec(session => session.set("customerLoggedIn", false))
+    .exec(session => session.set("cartTotal", 0.00))
+    .exec(addCookie(Cookie("sessionId", randomString(10)).withDomain(domain)))
+    // Comment out the print line during actual load
+    .exec{ session => println(session); session}
+
 
     // Tiding up the project
     //.inferHtmlResources(BlackList(""".*\.js""", """.*\.css""", """.*\.gif""", """.*\.jpeg""", """.*\.jpg""", """.*\.ico""", """.*\.woff""", """.*\.woff2""", """.*\.(t|o)tf""", """.*\.png""", """.*detectportal\.firefox\.com.*"""), WhiteList())
@@ -73,7 +88,10 @@ class DemostoreSimulation extends Simulation {
 
   object Checkout {
     def viewCart = {
-      exec(http("Load cart page")
+      doIf(session => !session("customerLoggedIn").as[Boolean]) {
+        exec(Customer.login)
+      }
+      .exec(http("Load cart page")
         .get("/cart/view")
         .check(status.is(200)))
     }
@@ -93,17 +111,23 @@ class DemostoreSimulation extends Simulation {
           .get("/login")
           .check(status.is(200))
           .check(substring("Username:")))
+        //Debug to print user logged in status
+        .exec{ session => println(session); session}
         .exec(http("Customer Login Action")
           .post("/login")
           .formParam("_csrf", "${csrfValue}")
           .formParam("username", "${username}")
           .formParam("password", "${password}")
           .check(status.is(200)))
+        .exec(session => session.set("customerLoggedIn", true))
+        //Debug to print user logged in status
+        .exec{ session => println(session); session}
     }
   }
 
   //Removed headers for tidying up
 	val scn = scenario("DemostoreSimulation")
+    .exec(initSession)
     .exec(CmsPages.homePage)
 		.pause(2)
     .exec(CmsPages.aboutUs)
@@ -117,8 +141,9 @@ class DemostoreSimulation extends Simulation {
 		.pause(2)
     .exec(Checkout.viewCart)
 		.pause(2)
-    .exec(Customer.login)
-		.pause(2)
+    // Not required. Since View cart is doing login for you
+    //.exec(Customer.login)
+		//.pause(2)
     .exec(Checkout.completeCheckout)
 
 
