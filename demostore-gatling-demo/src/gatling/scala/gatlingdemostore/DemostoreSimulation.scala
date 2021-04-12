@@ -13,25 +13,50 @@ class DemostoreSimulation extends Simulation {
 	val httpProtocol = http
 		.baseUrl("http://" + domain)
 
+  val categoryFeeder = csv("data/categoryDetails.csv").random
+
     // Tiding up the project
     //.inferHtmlResources(BlackList(""".*\.js""", """.*\.css""", """.*\.gif""", """.*\.jpeg""", """.*\.jpg""", """.*\.ico""", """.*\.woff""", """.*\.woff2""", """.*\.(t|o)tf""", """.*\.png""", """.*detectportal\.firefox\.com.*"""), WhiteList())
 		//.acceptHeader("text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
 		//.acceptEncodingHeader("gzip, deflate")
 		//.acceptLanguageHeader("en-IN,en-GB;q=0.9,en-US;q=0.8,en;q=0.7")
 		//.userAgentHeader("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.114 Safari/537.36")
+  object CmsPages {
+      def homePage = {
+        exec(http("Load Home Page")
+          .get("/")
+          .check(status.is(200))
+          .check(regex("<title>Gatling Demo-Store</title>").exists)
+          .check(css("#_csrf", "content").saveAs("csrfValue")))
+      }
+      def aboutUs = {
+        exec(http("Load About Us Page")
+          .get("/about-us")
+          .check(status.is(200)))
+      }
+  }
+
+  object Catalog {
+    object Category {
+      def view = {
+        feed(categoryFeeder)
+        .exec(http("Load Category Page - ${categoryName}")
+          .get("/category/${categorySlug}")
+          .check(status.is(200))
+          .check(css("#CategoryName").is("${categoryName}"))
+        )
+      }
+    }
+  }
+
 
   //Removed headers for tidying up
 	val scn = scenario("DemostoreSimulation")
-		.exec(http("Load Home Page")
-			.get("/")
-      .check(regex("<title>Gatling Demo-Store</title>").exists)
-      .check(css("#_csrf", "content").saveAs("csrfValue")))
+    .exec(CmsPages.homePage)
 		.pause(2)
-		.exec(http("Load About Us Page")
-			.get("/about-us"))
+    .exec(CmsPages.aboutUs)
     .pause(2)
-		.exec(http("Load Categories Page")
-			.get("/category/all"))
+    .exec(Catalog.Category.view)
 		.pause(2)
 		.exec(http("Load Product Page")
 			.get("/product/black-and-red-glasses"))
