@@ -29,7 +29,7 @@ class DemostoreSimulation extends Simulation {
     .exec(session => session.set("cartTotal", 0.00))
     .exec(addCookie(Cookie("sessionId", randomString(10)).withDomain(domain)))
     // Comment out the print line during actual load
-    .exec{ session => println(session); session}
+    //.exec{ session => println(session); session}
 
 
     // Tiding up the project
@@ -119,7 +119,7 @@ class DemostoreSimulation extends Simulation {
           .check(status.is(200))
           .check(substring("Username:")))
         //Debug to print user logged in status
-        .exec{ session => println(session); session}
+        //.exec{ session => println(session); session}
         .exec(http("Customer Login Action")
           .post("/login")
           .formParam("_csrf", "${csrfValue}")
@@ -128,7 +128,7 @@ class DemostoreSimulation extends Simulation {
           .check(status.is(200)))
         .exec(session => session.set("customerLoggedIn", true))
         //Debug to print user logged in status
-        .exec{ session => println(session); session}
+        //.exec{ session => println(session); session}
     }
   }
 
@@ -153,6 +153,21 @@ class DemostoreSimulation extends Simulation {
 		//.pause(2)
     .exec(Checkout.completeCheckout)
 
+  // By default we run only for 1 user - Uncomment this if we are just writing the code rahter than laod testing
+	// setUp(scn.inject(atOnceUsers(1))).protocols(httpProtocol)
 
-	setUp(scn.inject(atOnceUsers(1))).protocols(httpProtocol)
+  //ACTUAL LOAD TESTS
+  //Open model - Refer https://gatling.io/docs/current/general/simulation_setup/
+  /*setUp(
+    scn.inject(atOnceUsers(3),
+      nothingFor(5.seconds),
+      rampUsers(10) during(20.seconds),
+      nothingFor(10.seconds),
+      constantUsersPerSec(1) during(20.seconds)
+    ).protocols(httpProtocol)
+  )*/
+
+  //Closed model - Refer https://gatling.io/docs/current/general/simulation_setup/
+  
+
 }
