@@ -153,11 +153,57 @@ class DemostoreSimulation extends Simulation {
 		//.pause(2)
     .exec(Checkout.completeCheckout)
 
+  //MULTIPLE USER JOURNEYS
+  object UserJourneys {
+    def minPause = 100.milliseconds
+    def maxPause = 500 milliseconds
+
+    def browseStore = {
+      exec(initSession)
+        .exec(CmsPages.homePage)
+        .pause(maxPause)
+        .exec(CmsPages.aboutUs)
+        .pause(minPause, maxPause)
+        .repeat(5) {
+          exec(Catalog.Category.view)
+            .pause(minPause, maxPause)
+            .exec(Catalog.Product.view)
+        }
+    }
+
+    def abandonCart = {
+      exec(initSession)
+        .exec(CmsPages.homePage)
+        .pause(maxPause)
+        .exec(Catalog.Category.view)
+        .pause(minPause, maxPause)
+      .exec(Catalog.Category.view)
+        .pause(minPause, maxPause)
+        .exec(Catalog.Product.add)
+    }
+
+    def completePurchase = {
+      exec(initSession)
+        .exec(CmsPages.homePage)
+        .pause(maxPause)
+        .exec(Catalog.Category.view)
+        .pause(minPause, maxPause)
+        .exec(Catalog.Category.view)
+        .pause(minPause, maxPause)
+        .exec(Catalog.Product.add)
+        .pause(minPause, maxPause)
+        .exec(Checkout.viewCart)
+        .pause(minPause, maxPause)
+        .exec(Checkout.completeCheckout)
+    }
+
+  }
+
   // By default we run only for 1 user - Uncomment this if we are just writing the code rahter than laod testing
 	// setUp(scn.inject(atOnceUsers(1))).protocols(httpProtocol)
 
   //ACTUAL LOAD TESTS
-  //Open model - Refer https://gatling.io/docs/current/general/simulation_setup/
+  //OPEN MODEL - Refer https://gatling.io/docs/current/general/simulation_setup/
   /*setUp(
     scn.inject(atOnceUsers(3),
       nothingFor(5.seconds),
@@ -167,7 +213,25 @@ class DemostoreSimulation extends Simulation {
     ).protocols(httpProtocol)
   )*/
 
-  //Closed model - Refer https://gatling.io/docs/current/general/simulation_setup/
-  
+  //CLOSED MODEL - Refer https://gatling.io/docs/current/general/simulation_setup/
+  /*setUp(
+    scn.inject(
+      constantConcurrentUsers(10).during(20.seconds), // 1
+      rampConcurrentUsers(10).to(20).during(20.seconds) // 2
+    ).protocols(httpProtocol)
+  )*/
+
+  //THROTTLING MODEL - Throttles only to the upper RPS limit
+  //Throttled traffic goes into a queue
+  //Not balanced by request type
+  /*setUp(scn.inject(constantUsersPerSec(1).during(3.minutes))).protocols(httpProtocol)
+    .throttle(
+    reachRps(10).in(30.seconds),
+    holdFor(1.minute),
+    jumpToRps(20),
+    holdFor(1.minute)
+  ).maxDuration(3.minutes)*/
+
+  //MULTIPLE USER JOURNEYS
 
 }
