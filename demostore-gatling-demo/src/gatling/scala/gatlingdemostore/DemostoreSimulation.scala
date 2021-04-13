@@ -82,6 +82,11 @@ class DemostoreSimulation extends Simulation {
             .check(status.is(200))
             .check(substring("items in your cart"))
           )
+          .exec(session => {
+            val currentCartTotal = session("cartTotal").as[Double]
+            val itemPrice = session("price").as[Double]
+            session.set("cartTotal", currentCartTotal + itemPrice)
+          })
       }
     }
   }
@@ -93,7 +98,9 @@ class DemostoreSimulation extends Simulation {
       }
       .exec(http("Load cart page")
         .get("/cart/view")
-        .check(status.is(200)))
+        .check(status.is(200))
+        //Get the grandTotal from the form and compare with cartTotal. We also want the Dollar Symbol to be compared
+      .check(css("#grandTotal").is("$$${cartTotal}")))
     }
 
     def completeCheckout = {
