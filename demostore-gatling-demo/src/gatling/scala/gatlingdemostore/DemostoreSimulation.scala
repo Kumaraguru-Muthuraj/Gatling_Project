@@ -200,7 +200,7 @@ class DemostoreSimulation extends Simulation {
   }
 
   // By default we run only for 1 user - Uncomment this if we are just writing the code rahter than laod testing
-	// setUp(scn.inject(atOnceUsers(1))).protocols(httpProtocol)
+	 setUp(scn.inject(atOnceUsers(1))).protocols(httpProtocol)
 
   //ACTUAL LOAD TESTS
   //OPEN MODEL - Refer https://gatling.io/docs/current/general/simulation_setup/
