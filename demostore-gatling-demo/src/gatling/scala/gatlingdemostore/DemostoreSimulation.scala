@@ -23,6 +23,16 @@ class DemostoreSimulation extends Simulation {
     rnd.alphanumeric.filter(_.isLetter).take(length).mkString
   }
 
+  def userCount: Int = getProperty("USERS", "5").toInt
+  def rampDuration: Int = getProperty("RAMP_DURATION", "10")toInt
+  def testDuration: Int = getProperty("DURATION", "60").toInt
+
+  def getProperty(propertyName: String, defaultValue: String): String = {
+    Option(System.getenv(propertyName))
+      .orElse(Option(System.getProperty(propertyName)))
+      .getOrElse(defaultValue)
+  }
+
   val initSession = exec(flushCookieJar)
     .exec(session => session.set("randomNumber", rnd.nextInt))
     .exec(session => session.set("customerLoggedIn", false))
@@ -178,7 +188,7 @@ class DemostoreSimulation extends Simulation {
         .exec(Catalog.Category.view)
         .pause(minPause, maxPause)
       .exec(Catalog.Category.view)
-        .pause(minPause, maxPause)
+        .pause(minPause, maxPause) // Pause randomly between minPause and maxPause times
         .exec(Catalog.Product.add)
     }
 
@@ -199,8 +209,33 @@ class DemostoreSimulation extends Simulation {
 
   }
 
+  object Scenarios {
+    def default = scenario ("Default Load Test")
+      .during(60 seconds) {
+        randomSwitch(
+          75d -> exec(UserJourneys.browseStore),
+          15d -> exec(UserJourneys.abandonCart),
+          10d -> exec(UserJourneys.completePurchase)
+        )
+      }
+    def highPurchase = scenario("High Purchase Load")
+      .during(60 seconds) {
+        randomSwitch(
+          25d -> exec(UserJourneys.browseStore),
+          25d -> exec(UserJourneys.abandonCart),
+          50d -> exec(UserJourneys.completePurchase)
+        )
+      }
+  }
+
+  setUp(Scenarios.default
+    .inject(rampUsers(userCount) during (rampDuration seconds))
+    .protocols(httpProtocol)
+  )
+
+
   // By default we run only for 1 user - Uncomment this if we are just writing the code rahter than laod testing
-	 setUp(scn.inject(atOnceUsers(1))).protocols(httpProtocol)
+	 //setUp(scn.inject(atOnceUsers(1))).protocols(httpProtocol)
 
   //ACTUAL LOAD TESTS
   //OPEN MODEL - Refer https://gatling.io/docs/current/general/simulation_setup/
